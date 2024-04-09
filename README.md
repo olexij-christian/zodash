@@ -39,3 +39,7 @@ Contributions to Zodash are welcome! If you have any ideas, bug fixes, or enhanc
 ## License
 
 Zodash is licensed under the GNU Lesser General Public License v2.1 (LGPL-2.1). See the LICENSE file for details.
+
+## Acknowledgments
+
+I thank Jesus Christ that I have a laptop, time and opportunities to work on this project. And also to everyone who supports or is interested in this project.
