@@ -16,6 +16,16 @@ pub fn ZodashArray(comptime T: type) type {
             arr.list.deinit();
         }
 
+        pub fn clone(this: @This()) @This() {
+            var clonned = std.ArrayList(T).init(this.allocator);
+            clonned.appendSlice(this.list.items) catch unreachable;
+            var res = @This(){
+                .allocator = this.allocator,
+                .list = clonned,
+            };
+            return res;
+        }
+
         pub fn filter(zarr: *@This(), comptime condition: fn (T) bool) *@This() {
             var new_arr = std.ArrayList(T).init(zarr.allocator);
 
@@ -35,13 +45,24 @@ fn odd(num: u8) bool {
     return num % 2 == 0;
 }
 
-test "main test" {
+test "Clone" {
     var arr = ZodashArray(u8).init(std.testing.allocator);
+    defer arr.deinit();
     try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    // after executing filter() arr is deinited, and me should deinit res
-    var res = arr.filter(odd);
+    var clone = arr.clone();
+    var res = clone.filter(odd);
+    defer res.deinit();
+
+    try std.testing.expect(!std.mem.eql(u8, res.list.items, arr.list.items));
+}
+
+test "Filter" {
+    var arr = ZodashArray(u8).init(std.testing.allocator);
     defer arr.deinit();
+    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var res = arr.filter(odd);
 
     try std.testing.expectEqualSlices(u8, res.list.items, &[_]u8{ 2, 4, 6 });
 }
