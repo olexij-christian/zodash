@@ -16,14 +16,17 @@ pub fn ZodashArray(comptime T: type) type {
             arr.list.deinit();
         }
 
-        pub fn filter(arr: *@This(), comptime condition: fn (T) bool) @This() {
-            var res_arr = @This().init(arr.allocator);
-            defer arr.deinit();
-            for (arr.list.items) |item| {
+        pub fn filter(zarr: *@This(), comptime condition: fn (T) bool) *@This() {
+            var new_arr = std.ArrayList(T).init(zarr.allocator);
+
+            for (zarr.list.items) |item| {
                 if (condition(item))
-                    res_arr.list.append(item) catch unreachable;
+                    new_arr.append(item) catch unreachable;
             }
-            return res_arr;
+
+            zarr.list.deinit();
+            zarr.list = new_arr;
+            return zarr;
         }
     };
 }
@@ -38,7 +41,7 @@ test "main test" {
 
     // after executing filter() arr is deinited, and me should deinit res
     var res = arr.filter(odd);
-    defer res.deinit();
+    defer arr.deinit();
 
     try std.testing.expectEqualSlices(u8, res.list.items, &[_]u8{ 2, 4, 6 });
 }
