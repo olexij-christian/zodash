@@ -14,21 +14,47 @@ fn odd(num: u8) bool {
     return num % 2 == 0;
 }
 
-test "Filtering even numbers" {
-    const input = &[_]u8{1, 2, 3, 4, 5, 6};
-    const expected = &[_]u8{ 2, 4, 6 };
-    var allocator = std.testing.allocator;
+fn notodd(num: u8) bool {
+    return num % 2 != 0;
+}
 
-    // Initialize ZodashArray and append elements
-    var arr = ZodashArray(u8).init(allocator);
-    try arr.list.appendSlice(input);
+test "Filter" {
+    var arr = ZodashArray(u8).init(std.testing.allocator);
+    defer arr.deinit();
 
-    // Filter the array and compare with expected output
-    var filtered = arr.filter(odd);
-    defer filtered.deinit();
+    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    const actual = filtered.list.items;
-    try std.testing.expectEqualSlices(u8, actual, expected);
+    try arr.filter(odd);
+
+    try std.testing.expectEqualSlices(u8, arr.list.items, &[_]u8{ 2, 4, 6 });
+}
+
+test "Clone" {
+    var arr = ZodashArray(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var clone = try arr.clone();
+    defer clone.deinit();
+
+    try clone.filter(odd);
+
+    try std.testing.expect(!std.mem.eql(u8, clone.list.items, arr.list.items));
+}
+
+test "Exec" {
+    var arr = ZodashArray(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    try arr.exec(.{
+        .{ .filter = odd },
+        .{ .filter = notodd },
+    });
+
+    try std.testing.expect(arr.list.items.len == 0);
 }
 ```
 
