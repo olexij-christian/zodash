@@ -5,6 +5,8 @@ pub fn ZodashArray(comptime T: type) type {
         list: std.ArrayList(T),
         allocator: std.mem.Allocator,
 
+        const ZAType = @This();
+
         pub fn init(alloc: std.mem.Allocator) @This() {
             return @This(){
                 .allocator = alloc,
@@ -24,13 +26,33 @@ pub fn ZodashArray(comptime T: type) type {
             return res;
         }
 
+        pub fn FilterIterator(comptime condition: fn (T) bool) type {
+            return struct {
+                index: usize,
+                arr: []const T,
+
+                fn next(this: *@This()) ?T {
+                    while (this.index < this.arr.len) {
+                        defer this.index += 1;
+                        const item = this.arr[this.index];
+                        if (condition(item))
+                            return item;
+                    }
+                    return null;
+                }
+
+                fn init(zarr: ZAType) @This() {
+                    return @This(){ .index = 0, .arr = zarr.list.items };
+                }
+            };
+        }
+
         pub fn filter(zarr: *@This(), comptime condition: fn (T) bool) !void {
             var new_arr = std.ArrayList(T).init(zarr.allocator);
+            var iterator = FilterIterator(condition).init(zarr.*);
 
-            for (zarr.list.items) |item| {
-                if (condition(item))
-                    try new_arr.append(item);
-            }
+            while (iterator.next()) |item|
+                try new_arr.append(item);
 
             zarr.list.deinit();
             zarr.list = new_arr;
@@ -80,6 +102,20 @@ test "Filter" {
     try arr.filter(odd);
 
     try std.testing.expectEqualSlices(u8, arr.list.items, &[_]u8{ 2, 4, 6 });
+}
+
+test "FilterIterator" {
+    var arr = ZodashArray(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var iterator = ZodashArray(u8).FilterIterator(odd).init(arr);
+
+    try std.testing.expectEqual(iterator.next().?, 2);
+    try std.testing.expectEqual(iterator.next().?, 4);
+    try std.testing.expectEqual(iterator.next().?, 6);
+    try std.testing.expectEqual(iterator.next(), null);
 }
 
 test "Clone" {
