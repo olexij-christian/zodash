@@ -76,14 +76,15 @@ pub fn ZodashArray(comptime T: type) type {
                 index: usize,
                 arr: []const T,
 
-                const LastStage = stages[stages.len - 1];
-                const UnpackedStage = switch (@as(DefaultStages, LastStage)) {
+                const last_stage = stages[stages.len - 1];
+                const unpacked_last_stage = switch (@as(DefaultStages, last_stage)) {
                     .filter => |func| func,
                 };
-                const LastStageReturnType = @typeInfo(@TypeOf(UnpackedStage)).Fn.return_type orelse void;
-                const ResultType = switch (@typeInfo(LastStageReturnType)) {
+                const last_stage_return_type = @typeInfo(@TypeOf(unpacked_last_stage)).Fn.return_type orelse void;
+
+                const ResultType = switch (@typeInfo(last_stage_return_type)) {
                     .Optional => |opt| opt.child,
-                    else => LastStageReturnType,
+                    else => last_stage_return_type,
                 };
 
                 fn next(this: *@This()) ?ResultType {
