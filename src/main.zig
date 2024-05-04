@@ -1,8 +1,8 @@
 const std = @import("std");
 
-pub fn ZodashArray(comptime T: type) type {
+pub fn ZodashArrayList(comptime T: type) type {
     return struct {
-        list: std.ArrayList(T),
+        arraylist: std.ArrayList(T),
         allocator: std.mem.Allocator,
 
         const ZAType = @This();
@@ -10,18 +10,18 @@ pub fn ZodashArray(comptime T: type) type {
         pub fn init(alloc: std.mem.Allocator) @This() {
             return @This(){
                 .allocator = alloc,
-                .list = std.ArrayList(T).init(alloc),
+                .arraylist = std.ArrayList(T).init(alloc),
             };
         }
 
         pub fn deinit(arr: *@This()) void {
-            arr.list.deinit();
+            arr.arraylist.deinit();
         }
 
         pub fn clone(this: @This()) !@This() {
             var res = @This(){
                 .allocator = this.allocator,
-                .list = try this.list.clone(),
+                .arraylist = try this.arraylist.clone(),
             };
             return res;
         }
@@ -42,7 +42,7 @@ pub fn ZodashArray(comptime T: type) type {
                 }
 
                 fn init(zarr: ZAType) @This() {
-                    return @This(){ .index = 0, .arr = zarr.list.items };
+                    return @This(){ .index = 0, .arr = zarr.arraylist.items };
                 }
             };
         }
@@ -54,8 +54,8 @@ pub fn ZodashArray(comptime T: type) type {
             while (iterator.next()) |item|
                 try new_arr.append(item);
 
-            zarr.list.deinit();
-            zarr.list = new_arr;
+            zarr.arraylist.deinit();
+            zarr.arraylist = new_arr;
         }
 
         const DefaultStages = union(enum) {
@@ -113,7 +113,7 @@ pub fn ZodashArray(comptime T: type) type {
                 }
 
                 fn init(zarr: ZAType) @This() {
-                    return @This(){ .index = 0, .arr = zarr.list.items };
+                    return @This(){ .index = 0, .arr = zarr.arraylist.items };
                 }
             };
         }
@@ -135,23 +135,23 @@ fn notodd(num: u8) ?u8 {
 }
 
 test "Filter" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     try arr.filter(odd);
 
-    try std.testing.expectEqualSlices(u8, arr.list.items, &[_]u8{ 2, 4, 6 });
+    try std.testing.expectEqualSlices(u8, arr.arraylist.items, &[_]u8{ 2, 4, 6 });
 }
 
 test "FilterIterator" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    var iterator = ZodashArray(u8).FilterIterator(odd).init(arr);
+    var iterator = ZodashArrayList(u8).FilterIterator(odd).init(arr);
 
     try std.testing.expectEqual(iterator.next().?, 2);
     try std.testing.expectEqual(iterator.next().?, 4);
@@ -161,40 +161,40 @@ test "FilterIterator" {
 }
 
 test "Clone" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     var clone = try arr.clone();
     defer clone.deinit();
 
     try clone.filter(odd);
 
-    try std.testing.expect(!std.mem.eql(u8, clone.list.items, arr.list.items));
+    try std.testing.expect(!std.mem.eql(u8, clone.arraylist.items, arr.arraylist.items));
 }
 
 test "Exec" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     try arr.exec(.{
         .{ .filter = odd },
         .{ .filter = notodd },
     });
 
-    try std.testing.expect(arr.list.items.len == 0);
+    try std.testing.expect(arr.arraylist.items.len == 0);
 }
 
 test "ExecIterator 1 Filter" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    var iterator = ZodashArray(u8).ExecIterator(.{
+    var iterator = ZodashArrayList(u8).ExecIterator(.{
         .{ .filter = odd },
     }).init(arr);
 
@@ -213,12 +213,12 @@ fn filter_four(num: u8) ?u8 {
 }
 
 test "ExecIterator 2 Filters" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    var iterator = ZodashArray(u8).ExecIterator(.{
+    var iterator = ZodashArrayList(u8).ExecIterator(.{
         .{ .filter = odd },
         .{ .filter = filter_four },
     }).init(arr);
