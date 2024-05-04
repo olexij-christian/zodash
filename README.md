@@ -8,53 +8,115 @@ Here's a simple example demonstrating the usage of Zodash:
 
 ```zig
 const std = @import("std");
-const ZodashArray = @import("zodash").ZodashArray;
+const ZodashArrayList = @import("zodash").ZodashArrayList;
 
-fn odd(num: u8) bool {
-    return num % 2 == 0;
+fn is_even(num: u8) ?u8 {
+    if (num % 2 == 0)
+        return num
+    else
+        return null;
 }
 
-fn notodd(num: u8) bool {
-    return num % 2 != 0;
+fn is_odd(num: u8) ?u8 {
+    if (num % 2 != 0)
+        return num
+    else
+        return null;
 }
 
 test "Filter" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    try arr.filter(odd);
+    try arr.filter(is_even);
 
-    try std.testing.expectEqualSlices(u8, arr.list.items, &[_]u8{ 2, 4, 6 });
+    try std.testing.expectEqualSlices(u8, arr.arraylist.items, &[_]u8{ 2, 4, 6 });
+}
+
+test "FilterIterator" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var iterator = ZodashArrayList(u8).FilterIterator(is_even).init(arr);
+
+    try std.testing.expectEqual(iterator.next().?, 2);
+    try std.testing.expectEqual(iterator.next().?, 4);
+    try std.testing.expectEqual(iterator.next().?, 6);
+    try std.testing.expectEqual(iterator.next(), null);
+    try std.testing.expectEqual(iterator.next(), null);
 }
 
 test "Clone" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     var clone = try arr.clone();
     defer clone.deinit();
 
-    try clone.filter(odd);
+    try clone.filter(is_even);
 
-    try std.testing.expect(!std.mem.eql(u8, clone.list.items, arr.list.items));
+    try std.testing.expect(!std.mem.eql(u8, clone.arraylist.items, arr.arraylist.items));
 }
 
 test "Exec" {
-    var arr = ZodashArray(u8).init(std.testing.allocator);
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
     defer arr.deinit();
 
-    try arr.list.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     try arr.exec(.{
-        .{ .filter = odd },
-        .{ .filter = notodd },
+        .{ .filter = is_even },
+        .{ .filter = is_odd },
     });
 
-    try std.testing.expect(arr.list.items.len == 0);
+    try std.testing.expect(arr.arraylist.items.len == 0);
+}
+
+test "ExecIterator 1 Filter" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var iterator = ZodashArrayList(u8).ExecIterator(.{
+        .{ .filter = is_even },
+    }).init(arr);
+
+    try std.testing.expectEqual(iterator.next().?, 2);
+    try std.testing.expectEqual(iterator.next().?, 4);
+    try std.testing.expectEqual(iterator.next().?, 6);
+    try std.testing.expectEqual(iterator.next(), null);
+    try std.testing.expectEqual(iterator.next(), null);
+}
+
+fn filter_four(num: u8) ?u8 {
+    if (num == 4)
+        return null
+    else
+        return num;
+}
+
+test "ExecIterator 2 Filters" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var iterator = ZodashArrayList(u8).ExecIterator(.{
+        .{ .filter = is_even },
+        .{ .filter = filter_four },
+    }).init(arr);
+
+    try std.testing.expectEqual(iterator.next(), 2);
+    try std.testing.expectEqual(iterator.next(), 6);
+    try std.testing.expectEqual(iterator.next(), null);
+    try std.testing.expectEqual(iterator.next(), null);
 }
 ```
 
