@@ -19,7 +19,7 @@ pub fn ZodashArrayList(comptime T: type) type {
         }
 
         pub fn clone(this: @This()) !@This() {
-            var res = @This(){
+            const res = @This(){
                 .allocator = this.allocator,
                 .arraylist = try this.arraylist.clone(),
             };
@@ -103,7 +103,7 @@ pub fn ZodashArrayList(comptime T: type) type {
                         .filter => |fnc| fnc,
                     };
                     const is_last_iteration = index + 1 == stages.len;
-                    var new_value = func(value);
+                    const new_value = func(value);
                     if (is_last_iteration)
                         return new_value
                     else if (new_value == null)

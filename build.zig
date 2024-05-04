@@ -15,9 +15,7 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 
-    var zodash_module = b.createModule(.{
-        .source_file = .{ .path = "src/main.zig" },
+    _ = b.addModule("zodash", .{
+        .root_source_file = b.path("src/main.zig"),
     });
-
-    try b.modules.put(b.dupe("zodash"), zodash_module);
 }
