@@ -67,6 +67,17 @@ pub fn ZodashArrayList(comptime T: type) type {
             };
         }
 
+        pub fn cloneMap(zarr: @This(), comptime changer: anytype) !ZodashArrayList(@typeInfo(@TypeOf(changer)).Fn.return_type orelse void) {
+            const ResultType = @typeInfo(@TypeOf(changer)).Fn.return_type orelse void;
+            var new_zarr = ZodashArrayList(ResultType).init(zarr.allocator);
+            var iterator = MapIterator(T, ResultType, changer).init(zarr);
+
+            while (iterator.next()) |item|
+                try new_zarr.arraylist.append(item);
+
+            return new_zarr;
+        }
+
         pub fn map(zarr: *@This(), comptime changer: fn (T) T) !void {
             var new_arr = std.ArrayList(T).init(zarr.allocator);
             var iterator = MapIterator(T, T, changer).init(zarr.*);
@@ -92,10 +103,6 @@ pub fn ZodashArrayList(comptime T: type) type {
         const DefaultStages = union(enum) {
             filter: fn (T) ?T,
             map: fn (T) T,
-            // clone_map: struct {
-            //     IT: type,
-            //     OT: type,
-            // },
         };
 
         pub fn exec(this: *@This(), comptime stages: anytype) !void {
@@ -104,7 +111,6 @@ pub fn ZodashArrayList(comptime T: type) type {
                 switch (switchable) {
                     .filter => |func| try this.filter(func),
                     .map => |func| try this.map(func),
-                    // .clone_map => @compileError("Use .map but not .clone_map for method exec()."),
                 }
             }
         }
@@ -232,6 +238,18 @@ test "MapIterator 1" {
 
 fn asU16(num: u8) u16 {
     return @as(u16, num);
+}
+
+test "CloneMap" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    var new_arr = try arr.cloneMap(asU16);
+    defer new_arr.deinit();
+
+    try std.testing.expectEqualSlices(u16, new_arr.arraylist.items, &[_]u16{ 1, 2, 3, 4, 5, 6 });
 }
 
 test "MapIterator 2" {
