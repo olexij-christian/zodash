@@ -47,6 +47,17 @@ pub fn ZodashArrayList(comptime T: type) type {
             };
         }
 
+        pub fn filter(zarr: *@This(), comptime condition: fn (T) ?T) !void {
+            var new_arr = std.ArrayList(T).init(zarr.allocator);
+            var iterator = FilterIterator(condition).init(zarr.*);
+
+            while (iterator.next()) |item|
+                try new_arr.append(item);
+
+            zarr.arraylist.deinit();
+            zarr.arraylist = new_arr;
+        }
+
         // NOTE: IT - InputType, OT - OutputType
         pub fn MapIterator(comptime IT: type, comptime OT: type, comptime changer: fn (IT) OT) type {
             return struct {
@@ -68,9 +79,9 @@ pub fn ZodashArrayList(comptime T: type) type {
         }
 
         pub fn cloneMap(zarr: @This(), comptime changer: anytype) !ZodashArrayList(@typeInfo(@TypeOf(changer)).Fn.return_type orelse void) {
-            const ResultType = @typeInfo(@TypeOf(changer)).Fn.return_type orelse void;
-            var new_zarr = ZodashArrayList(ResultType).init(zarr.allocator);
-            var iterator = MapIterator(T, ResultType, changer).init(zarr);
+            const RT = @typeInfo(@TypeOf(changer)).Fn.return_type orelse void;
+            var new_zarr = ZodashArrayList(RT).init(zarr.allocator);
+            var iterator = MapIterator(T, RT, changer).init(zarr);
 
             while (iterator.next()) |item|
                 try new_zarr.arraylist.append(item);
@@ -89,15 +100,39 @@ pub fn ZodashArrayList(comptime T: type) type {
             zarr.arraylist = new_arr;
         }
 
-        pub fn filter(zarr: *@This(), comptime condition: fn (T) ?T) !void {
-            var new_arr = std.ArrayList(T).init(zarr.allocator);
-            var iterator = FilterIterator(condition).init(zarr.*);
+        // NOTE: IT - InputType, OT - OutputType
+        pub fn ReduceIterator(comptime RT: type, comptime reducer: fn (RT, T) RT) type {
+            return struct {
+                index: usize,
+                value: RT,
+                arr: []const T,
 
-            while (iterator.next()) |item|
-                try new_arr.append(item);
+                fn next(this: *@This()) ?RT {
+                    while (this.index < this.arr.len) {
+                        defer this.index += 1;
+                        this.value = reducer(this.value, this.arr[this.index]);
+                        return this.value;
+                    }
+                    return null;
+                }
 
-            zarr.arraylist.deinit();
-            zarr.arraylist = new_arr;
+                fn init(zarr: ZAType, default_value: RT) @This() {
+                    return @This(){
+                        .index = 0,
+                        .arr = zarr.arraylist.items,
+                        .value = default_value,
+                    };
+                }
+            };
+        }
+
+        // NOTE: RT - ResultType
+        pub fn reduce(zarr: @This(), comptime RT: type, comptime reducer: fn (RT, T) RT, default_value: RT) RT {
+            var iterator = ReduceIterator(RT, reducer).init(zarr, default_value);
+
+            while (iterator.next()) |_| {}
+
+            return iterator.value;
         }
 
         const DefaultStages = union(enum) {
@@ -263,6 +298,66 @@ test "MapIterator 2" {
     try std.testing.expectEqual(iterator.next().?, @as(u16, 1));
     try std.testing.expectEqual(iterator.next().?, @as(u16, 2));
     try std.testing.expectEqual(iterator.next().?, @as(u16, 3));
+    try std.testing.expectEqual(iterator.next(), @as(?u16, null));
+    try std.testing.expectEqual(iterator.next(), null);
+}
+
+fn plus(first: u8, second: u8) u8 {
+    return first + second;
+}
+
+test "Reduce 1" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    const result = arr.reduce(u8, plus, 0);
+
+    try std.testing.expectEqual(result, 21);
+}
+
+fn plusU16(first: u16, second: u8) u16 {
+    return first + second;
+}
+
+test "Reduce 2" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
+
+    const result = arr.reduce(u16, plusU16, 0);
+
+    try std.testing.expectEqual(result, @as(u16, 21));
+}
+
+test "ReduceIterator 1" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3 });
+
+    var iterator = ZodashArrayList(u8).ReduceIterator(u8, plus).init(arr, 0);
+
+    try std.testing.expectEqual(iterator.next().?, 1);
+    try std.testing.expectEqual(iterator.next().?, 3);
+    try std.testing.expectEqual(iterator.next().?, 6);
+    try std.testing.expectEqual(iterator.next(), null);
+    try std.testing.expectEqual(iterator.next(), null);
+}
+
+test "ReduceIterator 2" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3 });
+
+    var iterator = ZodashArrayList(u8).ReduceIterator(u16, plusU16).init(arr, 0);
+
+    try std.testing.expectEqual(iterator.next().?, @as(u16, 1));
+    try std.testing.expectEqual(iterator.next().?, @as(u16, 3));
+    try std.testing.expectEqual(iterator.next().?, @as(u16, 6));
     try std.testing.expectEqual(iterator.next(), @as(?u16, null));
     try std.testing.expectEqual(iterator.next(), null);
 }
