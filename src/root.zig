@@ -201,14 +201,14 @@ pub fn ZodashArrayList(comptime T: type) type {
     };
 }
 
-fn is_even(num: u8) ?u8 {
+fn isEven(num: u8) ?u8 {
     if (num % 2 == 0)
         return num
     else
         return null;
 }
 
-fn is_odd(num: u8) ?u8 {
+fn isOdd(num: u8) ?u8 {
     if (num % 2 != 0)
         return num
     else
@@ -221,7 +221,7 @@ test "Filter" {
 
     try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    try arr.filter(is_even);
+    try arr.filter(isEven);
 
     try std.testing.expectEqualSlices(u8, arr.arraylist.items, &[_]u8{ 2, 4, 6 });
 }
@@ -232,7 +232,7 @@ test "FilterIterator" {
 
     try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
-    var iterator = ZodashArrayList(u8).FilterIterator(is_even).init(arr);
+    var iterator = ZodashArrayList(u8).FilterIterator(isEven).init(arr);
 
     try std.testing.expectEqual(iterator.next().?, 2);
     try std.testing.expectEqual(iterator.next().?, 4);
@@ -371,7 +371,7 @@ test "Clone" {
     var clone = try arr.clone();
     defer clone.deinit();
 
-    try clone.filter(is_even);
+    try clone.filter(isEven);
 
     try std.testing.expect(!std.mem.eql(u8, clone.arraylist.items, arr.arraylist.items));
 }
@@ -383,8 +383,8 @@ test "Exec" {
     try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     try arr.exec(.{
-        .{ .filter = is_even },
-        .{ .filter = is_odd },
+        .{ .filter = isEven },
+        .{ .filter = isOdd },
     });
 
     try std.testing.expect(arr.arraylist.items.len == 0);
@@ -397,7 +397,7 @@ test "ExecIterator 1 Filter" {
     try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     var iterator = ZodashArrayList(u8).ExecIterator(.{
-        .{ .filter = is_even },
+        .{ .filter = isEven },
     }).init(arr);
 
     try std.testing.expectEqual(iterator.next().?, 2);
@@ -421,7 +421,7 @@ test "ExecIterator 2 Filters" {
     try arr.arraylist.appendSlice(&[_]u8{ 1, 2, 3, 4, 5, 6 });
 
     var iterator = ZodashArrayList(u8).ExecIterator(.{
-        .{ .filter = is_even },
+        .{ .filter = isEven },
         .{ .filter = filter_four },
     }).init(arr);
 
