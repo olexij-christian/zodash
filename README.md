@@ -2,6 +2,20 @@
 
 Zodash is a Zig library inspired by Lodash, providing various functionalities for arrays. Please note that this project is currently in development.
 
+## Roadmap
+Plan to realize more functions from Lodash
+- [X] filter
+- [X] map
+- [X] reduce
+- [ ] split
+- [ ] chunk
+- [ ] compact
+- [ ] difference
+- [ ] differenceByFunction
+- [ ] differenceByProperty
+- [ ] differenceWith
+- [ ] Other later
+
 ## Usage
 
 Here's a simple example demonstrating the usage of Zodash:
