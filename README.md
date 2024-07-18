@@ -7,7 +7,8 @@ Plan to realize more functions from Lodash
 - [X] filter
 - [X] map
 - [X] reduce
-- [ ] split
+- [X] split
+- [ ] trim
 - [ ] chunk
 - [ ] compact
 - [ ] difference

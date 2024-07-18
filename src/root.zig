@@ -14,7 +14,7 @@ pub fn ZodashArrayList(comptime T: type) type {
             };
         }
 
-        pub fn deinit(arr: *@This()) void {
+        pub fn deinit(arr: @This()) void {
             arr.arraylist.deinit();
         }
 
@@ -139,6 +139,29 @@ pub fn ZodashArrayList(comptime T: type) type {
             filter: fn (T) ?T,
             map: fn (T) T,
         };
+
+        pub fn SplitIterator() type {
+            return struct {
+                fn init(zarr: ZAType, delimiter: []const T) std.mem.SplitIterator(T, .sequence) {
+                    return std.mem.splitSequence(T, zarr.arraylist.items, delimiter);
+                }
+            };
+        }
+
+        pub fn splitAsNew(zarr: @This(), delimiter: []const T, limit: usize) !ZodashArrayList([]const T) {
+            var iterator = SplitIterator().init(zarr, delimiter);
+            var result = ZodashArrayList([]const T).init(zarr.allocator);
+
+            var counter: usize = 0;
+            while (iterator.next()) |slice| {
+                if (counter >= limit)
+                    break;
+                counter += 1;
+                try result.arraylist.append(slice);
+            }
+
+            return result;
+        }
 
         pub fn exec(this: *@This(), comptime stages: anytype) !void {
             inline for (stages) |stg| {
@@ -359,6 +382,34 @@ test "ReduceIterator 2" {
     try std.testing.expectEqual(iterator.next().?, @as(u16, 3));
     try std.testing.expectEqual(iterator.next().?, @as(u16, 6));
     try std.testing.expectEqual(iterator.next(), @as(?u16, null));
+    try std.testing.expectEqual(iterator.next(), null);
+}
+
+test "Split" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice("Hello World! And Friends!");
+
+    const splitted = try arr.splitAsNew(" ", 3);
+    defer splitted.deinit();
+
+    try std.testing.expect(std.mem.eql(u8, splitted.arraylist.items[0], "Hello"));
+    try std.testing.expect(std.mem.eql(u8, splitted.arraylist.items[1], "World!"));
+    try std.testing.expect(std.mem.eql(u8, splitted.arraylist.items[2], "And"));
+    try std.testing.expectEqual(splitted.arraylist.items.len, 3);
+}
+
+test "SplitIterator" {
+    var arr = ZodashArrayList(u8).init(std.testing.allocator);
+    defer arr.deinit();
+
+    try arr.arraylist.appendSlice("Hello World!");
+
+    var iterator = ZodashArrayList(u8).SplitIterator().init(arr, " ");
+
+    try std.testing.expect(std.mem.eql(u8, iterator.next().?, "Hello"));
+    try std.testing.expect(std.mem.eql(u8, iterator.next().?, "World!"));
     try std.testing.expectEqual(iterator.next(), null);
 }
 
